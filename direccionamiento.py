@@ -1,175 +1,295 @@
-class Direccionamiento:
-	def __init__(self, DiccionarioDireccionamiento, dirMem):
-		self.Direccionamientos = DiccionarioDireccionamiento
-		self.dirMem = dirMem
-		self.labels = {}
-		self.objCode = ["", "", ""]
-		#print(self.Direccionamientos)
-	# Formato de banderas: 
-	# [  1,  2,    3,     4,    5,    6,  7 ]
-	# [IMM, DIR, IND,X, IND,Y, EXT, INH, REL]
-	def buscarDireccionamiento(self, mnemonico, variable,relativo,manejo,lineas):
-		bandera = [0]
-		self.objCode = ["", "", ""]
+class Toc:
 
-		if (str(variable).find('$') != -1 and (str(variable).find('#')==-1)):
-			if (len(variable[1:])%2 != 0):
-				variable = '$' + '0' + variable[1:len(variable)]
+	codigoC=[]
+	
+	def analizaTodo(self, lines):
+		con=0	
+		nueva=""
+		index=0
+		index2=4
+		contr=1
+		contv=1
+		conts=1
+		contdec=1
+		contresta=1
+		contmult=1
+		contdiv=1
+		continc=1
+		contcmp=1
+		contP=1
 
-		variable = str(variable)
-		if(variable.find("\'") != -1):
-			indice = variable.find("'")
-			variable = str(ord(variable[indice+1]))
-			#print("Código ASCII: "+variable)
-		try:
-			direccionamientos = self.Direccionamientos[mnemonico.lower()]
-			if(str(variable).find('#')==-1):
-				if str(variable) =='':
-					# Direccionamiento inherente
-					if(direccionamientos[5] != 0):
-						bandera = direccionamientos[5]
-						#print("Direccionamiento inherente")
-					else:
-						manejo.error6(lineas)
-				else:
-					if(variable.find(',') == 3):
-						if(variable.find('X') == 4):
-							# Direccionamiento indexado respecto a X
-							if len(variable) > 5:
-								manejo.error7(lineas)
-							elif(direccionamientos[2] != 0):
-								bandera = direccionamientos[2]
-								#print("Direccionamiento indexado respecto a X")
-							else:
-								print("Error")
-						elif(variable.find('Y') == 4):
-							# Direccionamiento indexado respecto a Y
-							if len(variable) > 5:
-								manejo.error7(lineas)
-							elif(direccionamientos[3] != 0):
-								bandera = direccionamientos[3]
-								#print("Direccionamiento indexado respecto a Y")
-							else:
-								print("Error")
-						else:
-							# Error
-							print("Error")
-					elif(len(variable) >= 4):
-						# Direccionamiento extendido
-						if(direccionamientos[4] != 0):
-							#hexadecimal
-							if(variable[0]!='$' and type(variable[0])!=type('a')):
-								hexa=hex(int(variable))
-								variable=str(hexa).upper()
-								variable=variable[2:len(variable)]
-							if len(variable)>6:
-								manejo.error7(lineas)
-							else:
-								bandera = direccionamientos[4]
-								#print("Direccionamiento extendido")
-						else:
-							manejo.error7(lineas)
-					elif(len(variable) >=1):
-						# Direccionamiento directo
-						if(direccionamientos[1] != 0):
-							bandera = direccionamientos[1]
-							#print("Direccionamiento directo")
-							#hexadecimal
-							if(variable[0]!='$'):
-								hexa=hex(int(variable))
-								variable=str(hexa).upper()
-								variable=variable[2:len(variable)]
-							if len(variable) > 3:
-								manejo.error7(lineas)
-							else:
-								bandera = direccionamientos[1]
-								#print("Direccionamiento directo")
-						else:
-							print("Error")
-			elif(direccionamientos[0]!=0):
-				# Direccionamiento inmediato o relativo
-					if(variable[1]!='$' and variable[1]!="'"):
-						hexa=hex(int(variable[1:]))
-						variable=str(hexa).upper()
-						variable=variable[2:len(variable)]
-						if(len(variable)==1):
-							variable='0'+variable
-					if len(variable) > 6 :
-						manejo.error7(lineas)
-					bandera = direccionamientos[0]
-					#print("Direccionamiento inmediato")
-			else:
-				if (relativo != 0):
-					if(direccionamientos[6]!=0):
-						self.dirMem = self.dirMem + int(bandera[len(bandera)-1])
+		while con < len(lines):			 
 
-					
-			#print(str(self.dirMem)+", "+str(bandera))
-			self.dirMem = hex(int("0x"+self.dirMem[2:], 16) + int(bandera[len(bandera)-1]))
-			variable = variable.strip('#$')
-			if(variable.find("0x") != -1):
-				variable = variable[2:]
-			self.objCode = [str(bandera[0]) + variable, str(bandera[0]), variable]
-			#print("OpCode, tamanio , direccionamiento  : "+str(bandera)+" : Variable: " +str(variable)+" Mem: "+str(self.dirMem))
-		
-		except KeyError:
-			if(mnemonico=='ORG'):
-				self.dirMem="0x"+variable[1:]
-			elif(mnemonico=='FCB'):
-				print()
-
-			else:
-				manejo.error4(lineas)
-	def direccionamientoRelativo(self, mnemonico, variable, manejo, lineas, salto=0):
-		self.objCode = ["", "", ""]
-		try:
-			direccionamiento = self.Direccionamientos[mnemonico.lower()]
-			if (not(variable in self.labels)):
-				self.labels[variable] = self.dirMem
-			else:
-				variable=self.labels[variable]
-
-			if(direccionamiento[6] != 0):
-				bandera = direccionamiento[6]
-				#print("Direccionamiento relativo")
-				#salto=3 #hex(self.dirMem-self.listEti[variable])
-				self.dirMem = hex(int("0x"+self.dirMem[2:], 16) + int(bandera[len(bandera)-1]))
-				salto = str(salto)
-				print(salto)
-				if(int(salto,16)< -127 or int(salto,16) >128):
-						manejo.error8(lineas)
-				else:
-					if(len(salto)==4 and salto[0]=='-'):
-						salto=bin(int(salto,16)& (2**8-1))
-						print(salto)
-						salto=hex(int(salto,2))
-						print(salto)					
-						self.objCode = [str(bandera[0]) +salto[2:].upper(), str(bandera[0]), salto[2:].upper()]
-					elif(len(salto)==5 and salto[0]=='-'):
-						salto=bin(int(salto,16)& (2**8-1))
-						print(salto)
-						salto=hex(int(salto,2))	
-						self.objCode = [str(bandera[0]) +salto[3:].upper(), str(bandera[0]), salto[3:].upper()]
-						print(salto)
-					elif(len(salto)==3):
-						self.objCode = [str(bandera[0]) +"0"+salto[2:].upper(), str(bandera[0]), "0"+salto[2:].upper()]
-					elif(len(salto)==3 and salto[0]=='-'):
-						salto=bin(int(salto,16)& (2**8-1))
-						print(salto)
-						salto=hex(int(salto,2))	
-						print(salto)
-						self.objCode = [str(bandera[0]) +"0"+salto[2:].upper(), str(bandera[0]), "0"+salto[2:].upper()]
-					else:
-						self.objCode = [str(bandera[0]) + salto[2:].upper(), str(bandera[0]), salto[2:].upper()]
-				#print("OpCode, tamanio , direccionamiento  : "+str(bandera)+" : Variable(rel) " +str(salto)+" Mem: "+str(self.dirMem))
-			else:
-				self.buscarDireccionamiento(mnemonico, variable,1,manejo,lineas)
+			linea=(lines[con]).replace(' ','')
+			linealong=linea.replace('\n','')
+			nueva=nueva+linealong
 			
-		except KeyError:
-			manejo.error4(lineas)
-	def getObjCode(self):
-		return self.objCode
-	def GettDireccion(self):
-		return self.dirMem
-	def resetDirMem(self, dirMemoria):
-		self.dirMem = dirMemoria
+			con=con+1
+		cadena=0
+		print(nueva)
+		print(len(nueva))
+		print(nueva[index:index2])
+			
+		while cadena < len(nueva):
+			#MOV
+			if(nueva[index:index2]=='0010'):
+				aux="r"+str(contr)+"="+nueva[index+8:index2+8]
+				self.codigoC.append(aux)
+				contr=contr+1
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			elif(nueva[index:index2]=='0011'):
+				aux="var"+str(contv)+"="+nueva[index+8:index2+8]
+				self.codigoC.append(aux)
+				contv=contv+1
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			elif(nueva[index:index2]=='0012'):
+				aux="r"+str(contr)+"="+nueva[index+8:index2+8]
+				self.codigoC.append(aux)
+				contr=contr+1
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			elif(nueva[index:index2]=='0013'):
+				aux="var"+str(contv)+"="+nueva[index+8:index2+8]
+				self.codigoC.append(aux)
+				contv=contv+1
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#PUSH
+			elif(nueva[index:index2]=='0014'):
+				print("")
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8				
+			#POP
+			elif(nueva[index:index2]=='0015'):
+				print("")
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#ADD
+			elif(nueva[index:index2]=='0016' or nueva[index:index2]=='0017' or nueva[index:index2]=='0018' or nueva[index:index2]=='0019' ):
+				op1="a"+str(conts)+"="+nueva[index+4:index2+4]
+				self.codigoC.append(op1)
+				op2="b"+str(conts)+"="+nueva[index+8:index2+8]
+				self.codigoC.append(op2)
+				other="sum"+str(conts)+"= a"+str(conts)+"+ b"+str(conts)
+				self.codigoC.append(other)
+				auxsuma=int(nueva[index+8:index2+8],16)+int(nueva[index+4:index2+4],16)
+				aux="sum"+str(conts)+"="+str(auxsuma)
+				self.codigoC.append(aux)
+				conts=conts+1
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#DEC
+			elif(nueva[index:index2]=='001A'):
+				dec=int(nueva[index+4:index2+4],16)-1
+				aux="dec"+str(contdec)+"="+str(dec)
+				self.codigoC.append(aux)
+				contdec=contdec+1
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#SUB
+			elif(nueva[index:index2]=='001B' or nueva[index:index2]=='001C' or nueva[index:index2]=='001D' or nueva[index:index2]=='001E'):
+				op1="c"+str(contresta)+"="+nueva[index+4:index2+4]
+				self.codigoC.append(op1)
+				op2="d"+str(contresta)+"="+nueva[index+8:index2+8]
+				self.codigoC.append(op2)
+				other="resta"+str(contresta)+"= d"+str(contresta)+"- c"+str(contresta)
+				self.codigoC.append(other)
+				auxresta=int(nueva[index+8:index2+8],16)-int(nueva[index+4:index2+4],16)
+				aux="rest"+str(contresta)+"="+str(auxresta)
+				self.codigoC.append(aux)
+				contresta=contresta+1
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#MUL
+			elif(nueva[index:index2]=='001F' or nueva[index:index2]=='0020' or nueva[index:index2]=='0021' or nueva[index:index2]=='0022'):
+				op1="e"+str(contmult)+"="+nueva[index+4:index2+4]
+				self.codigoC.append(op1)
+				op2="f"+str(contmult)+"="+nueva[index+8:index2+8]
+				self.codigoC.append(op2)
+				other="mult"+str(contmult)+"= e"+str(contmult)+"* f"+str(contmult)
+				self.codigoC.append(other)
+				auxmult=int(nueva[index+8:index2+8],16)*int(nueva[index+4:index2+4],16)
+				aux="mult"+str(contmult)+"="+str(auxmult)
+				self.codigoC.append(aux)
+				contmult=contmult+1
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#DIV
+			elif(nueva[index:index2]=='0023' or nueva[index:index2]=='0024' or nueva[index:index2]=='0025' or nueva[index:index2]=='0026'):
+				op1="g"+str(contdiv)+"="+nueva[index+4:index2+4]
+				self.codigoC.append(op1)
+				op2="h"+str(contdiv)+"="+nueva[index+8:index2+8]
+				self.codigoC.append(op2)
+				other="div"+str(contdiv)+"= g"+str(contdiv)+"/ h"+str(contdiv)
+				self.codigoC.append(other)
+				try: 
+					auxdiv=int(nueva[index+8:index2+8],16)/int(nueva[index+4:index2+4],16)
+					aux="div"+str(contdiv)+"="+str(auxdiv)
+					self.codigoC.append(aux)
+					contdiv=contdiv+1
+				except ZeroDivisionError:
+					print("No se puede divivir entre cero\n")
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#INC
+			elif(nueva[index:index2]=='0027'):	
+				inc=int(nueva[index+4:index2+4],16)+1
+				aux="inc"+str(continc)+"="+str(inc)
+				self.codigoC.append(aux)
+				continc=continc+1
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#CMP
+			elif(nueva[index:index2]=='0028'):
+				auxcmp=int(nueva[index+8:index2+8],16)-int(nueva[index+4:index2+4],16)
+				aux="cmp"+str(contcmp)+"="+str(auxcmp)
+				self.codigoC.append(aux)
+				contcmp=contcmp+1
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#AND
+			elif(nueva[index:index2]=='0029'):
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#printN
+			elif(nueva[index:index2]=='0036' or nueva[index:index2]=='0037'):
+				impN='printf("'+nueva[index+4:index2+4]+'")"'
+				self.codigoC.append(impN)
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#printCh
+			elif(nueva[index:index2]=='0038' or nueva[index:index2]=='0039'):
+
+				impCh='printf("'+nueva[index+4:index2+4]+'")'
+				self.codigoC.append(impCh)
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#printS
+			elif(nueva[index:index2]=='003A'):
+				impS='printf("'+nueva[index+4:index2+4]+'")'
+				self.codigoC.append(impS)
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#readN
+			elif(nueva[index:index2]=='003B'):
+				aux="cst"+str(contP)+"="+nueva[index+4:index2+4]
+				self.codigoC.append(aux)
+				leeN='scanf("%d",&cst'+str(contP)+')'
+				self.codigoC.append(leeN)
+				contP=contP+1
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#readCh
+			elif(nueva[index:index2]=='003C'):
+				aux="cst"+str(contP)+"="+nueva[index+4:index2+4]
+				self.codigoC.append(aux)
+				leeN='scanf("%c",&cst'+str(contP)+')'
+				self.codigoC.append(leeN)
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#readS
+			elif(nueva[index:index2]=='003D'):
+				aux="cst"+str(contP)+"="+nueva[index+4:index2+4]
+				self.codigoC.append(aux)
+				leeS='scanf("%s",&cst'+str(contP)+')'
+				self.codigoC.append(leeS)
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#tff
+			elif(nueva[index:index2]=='003E'):
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#CALL
+			elif(nueva[index:index2]=='002F'):
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#ret
+			elif(nueva[index:index2]=='0030'):
+				index=index+4
+				index2=index2+4
+				cadena=cadena+4
+			#jmpz
+			elif(nueva[index:index2]=='0031'):
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#jmpnz
+			elif(nueva[index:index2]=='0032'):
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#jmp
+			elif(nueva[index:index2]=='0033'):
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#jmpp
+			elif(nueva[index:index2]=='0034'):
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#jmpn
+			elif(nueva[index:index2]=='0035'):
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#test
+			elif(nueva[index:index2]=='002E'):
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#nop
+			elif(nueva[index:index2]=='002D'):
+				index=index+4
+				index2=index2+4
+				cadena=cadena+4
+			#not
+			elif(nueva[index:index2]=='002C'):
+				index=index+8
+				index2=index2+8
+				cadena=cadena+8
+			#xor
+			elif(nueva[index:index2]=='002B'):
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			#or
+			elif(nueva[index:index2]=='002A'):
+				index=index+12
+				index2=index2+12
+				cadena=cadena+12
+			else:
+				print("nada")
+				index=index+4
+				index2=index2+4
+				cadena=cadena+4
+	
+		print(self.codigoC)
+		
+
+  
+
